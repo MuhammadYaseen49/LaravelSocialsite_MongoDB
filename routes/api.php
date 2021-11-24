@@ -36,7 +36,7 @@ Route::group(["middleware" => ["verification"]], function(){
     Route::post("createPost", [PostController::class, "createPost"]);
     Route::get("listPost", [PostController::class, "listPost"]);
     Route::get("myPost", [PostController::class, "myPost"]);
-    Route::put("updatePost/{id}", [PostController::class, "updatePost"]);
+    Route::post("updatePost/{id}", [PostController::class, "updatePost"]);
     Route::delete("deletePost/{id}", [PostController::class, "deletePost"]);
 
     // Friend Request Routes

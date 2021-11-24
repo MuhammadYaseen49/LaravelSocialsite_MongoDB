@@ -7,7 +7,9 @@ use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use MongoDB\Client as Mongo;
 use Illuminate\Http\Request;
+
 class PostController extends Controller{
+
     public function createPost(Request $request){ 
         $request->validate([
             "title"=>"required",
@@ -23,15 +25,19 @@ class PostController extends Controller{
         $encoded = json_encode($userID);
         $decoded = json_decode($encoded, true);
         $str_decode = $decoded['$oid'];
+        $attachment = null;
+        if ($request->file('attachment') != null) {
+            $attachment = $request->file('attachment')->store('postFiles');
+        }
 
         $collection->insertOne([
             'user_id' => $str_decode,
             'title' => $request->title,
             'body' => $request->body,
-            'attachment' => $request->file('attachment')->store('Attachments_Folder'),
-            'privacy' => $request->privacy
+            'privacy' => $request->privacy,
+            'attachment' => $attachment
         ]);
-
+ 
         return response([
             'Status' => '200',
             'message' => 'successfully Posted',
@@ -58,8 +64,10 @@ class PostController extends Controller{
         $str_decode = $decoded['$oid'];
 
         $collection = (new Mongo())->SocialsiteMongo->posts;
-        $myPosts = $collection->find(['user_id' => $str_decode]);
-
+        $Posts = $collection->find([
+            'user_id' => $str_decode
+        ]);
+        $myPosts = $Posts->toArray();
         if($myPosts){
             return response()->json([
                 "status"=>"1",
@@ -75,49 +83,60 @@ class PostController extends Controller{
     }
 
     public function updatePost(Request $request, $id){
-         $getToken = $request->bearerToken();
-         if (!isset($getToken)) {
-             return response([
-                 'message' => 'Bearer token not found'
-             ]);
-         }
+        
+        $getToken = $request->bearerToken();
 
          $decoded = JWT::decode($getToken, new Key('ProgrammersForce', 'HS256'));
-         $userId = $decoded->id;
+         $userID = $decoded->id;
          $collection = (new Mongo())->SocialsiteMongo->posts;
+         
+        $encoded = json_encode($userID);
+        $decoded = json_decode($encoded, true);
+        $str_decode = $decoded['$oid'];
+
+        //$collection = (new Mongo())->SocialsiteMongo->posts;  
+        
+        $postCollection = $collection->findOne([
+            '_id' => new \MongoDB\BSON\ObjectId($id)
+            // 'user_id' => $id
+        ]);
+        //dd($postCollection);
+        
+        if ($postCollection == null) {
+            return response([
+                'message' => 'No such post exists'
+            ]);
+        }
+
          $data_to_update = [];
          foreach ($request->all() as $key => $value) {
-             if (in_array($key, ['title', 'body'])) {
-                 $data_to_update[$key] = $value;
+            if (in_array($key, ['title', 'body','privacy','attachment'])) {
+                $data_to_update[$key] = $value;
              }
          }
-         $postCollection = $collection->findOne([
-             '_id' => new \MongoDB\BSON\ObjectId($id),
-             'user_id' => $userId
-         ]);
-
-         if ($postCollection == null) {
-             return response([
-                 'message' => 'No such post exists'
-             ]);
-         }
-
-         if (!empty($postCollection)) {
+       
+         if (isset($postCollection)) {
+           
              $collection->updateOne(
-                 [
-                     '_id' => new \MongoDB\BSON\ObjectId($id),
-                     'user_id' => $userId
-                 ],
+                 ['_id' => new \MongoDB\BSON\ObjectId($id)],
                  ['$set' => $data_to_update]
              );
+             
+             if(!isset($data_to_update['attachment'])){
 
+                $collection->updateOne(
+                    [
+                        '_id' => new \MongoDB\BSON\ObjectId($id),
+                    ],
+                    ['$set' => ['attachment' => null]]
+                );
+            }
              if ($request->file('attachment') != null) {
                  $file = $request->file('attachment')->store('postFiles');
 
                  $collection->updateOne(
                      [
                          '_id' => new \MongoDB\BSON\ObjectId($id),
-                         'user_id' => $userId
                      ],
                      ['$set' => ['attachment' => 'http://127.0.0.1:8000/storage/app/' . $file]]
                  );
@@ -126,8 +145,7 @@ class PostController extends Controller{
              if ($request->privacy != null) {
                  $collection->updateOne(
                      [
-                         '_id' => new \MongoDB\BSON\ObjectId($id),
-                         'user_id' => $userId
+                         '_id' => new \MongoDB\BSON\ObjectId($id)
                      ],
                      ['$set' => ['privacy' => $request->privacy]]
                  );

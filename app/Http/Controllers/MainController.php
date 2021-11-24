@@ -15,14 +15,6 @@ use MongoDB\Client as Mongo;
 
 class MainController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function index(){}
-
-    //Register Action
     public function register(Request $request){
         $fields = $request->validate([
             'name' => 'required|string',
@@ -157,7 +149,7 @@ class MainController extends Controller
             "aud" => "http://127.0.0.1:8000/api",
             "iat" => time(),
             "nbf" => 1357000000,
-            "exp" => time() + 1000,
+            "exp" => time() + 10000,
             "id" => $id
         );
         $token = JWT::encode($payload, $key, 'HS256');
@@ -192,23 +184,50 @@ class MainController extends Controller
         }
     }
 
-    public function updateProfile(Request $request, $id){
+    public function updateProfile(Request $request){
         $getToken = $request->bearerToken();
-        $collection = (new Mongo())->MongoApp->users;
+        $collection = (new Mongo())->SocialsiteMongo->users;
         $decoded = JWT::decode($getToken, new Key("ProgrammersForce", "HS256"));
         $userID = $decoded->id;
         $encoded = json_encode($userID);
         $decoded = json_decode($encoded, true);
         $str_decode = $decoded['$oid'];
-        $userUpdate = $collection->find(['_id' => new \MongoDB\BSON\ObjectID($id)]);
-        if (isset($userUpdate)) {
-            $userExist = $collection->updateOne(
-                ['_id' => new \MongoDB\BSON\ObjectID($str_decode)],
-                ['$set' => ['name' => $request->name, 'password' => Hash::make($request->password)]]
-            );
+        $userUpdate = $collection->find(['_id' => new \MongoDB\BSON\ObjectID($str_decode)]);
+        
+        $data_to_update = [];
+        foreach ($request->all() as $key => $value) {
+            if (in_array($key, ['name', 'email', 'password'])) {
+                $data_to_update[$key] = $value;
+            }
+        }
+
+        if($data_to_update == null)
+        {
             return response([
+                "message" => "parameters are required!"
+            ]);
+        }
+
+        if(!isset($data_to_update['password']))
+        {
+            return response([
+                "message" => "Password is required!"
+            ]);
+        }
+
+        if ($request->password != null ) {
+            $data_to_update['password'] = Hash::make($request->password);
+        }
+
+        if (isset($userUpdate)) {
+            $collection->updateOne(
+                ['_id' => new \MongoDB\BSON\ObjectID($str_decode)],
+                ['$set' => $data_to_update]
+            );
+
+          return response([
                 'Status' => '200',
-                'message' => 'you have successfully Update User Profile',
+                'message' => 'you have successfully Updated User Profile',
             ], 200);
         }else {
             return response([
