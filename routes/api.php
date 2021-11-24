@@ -39,13 +39,5 @@ Route::group(["middleware" => ["verification"]], function(){
     Route::post("updatePost/{id}", [PostController::class, "updatePost"]);
     Route::delete("deletePost/{id}", [PostController::class, "deletePost"]);
 
-    // Friend Request Routes
-    Route::post('sendRequest', [FriendsController::class, 'sendFriendRequest']);
-    Route::post('myRequests', [FriendsController::class, 'myRequests']);
-    Route::post('acceptRequest', [FriendsController::class, 'acceptRequest']);
-
-    // Comments Routes
-    Route::post('createComment', [CommentController::class, 'createComment']);
-    Route::post('updateComment/{id}', [CommentController::class, 'updateComment']);
-    Route::post('deleteComment/{id}', [CommentController::class, 'deleteComment']);
+  
 });
